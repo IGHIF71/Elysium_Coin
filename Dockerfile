@@ -1,38 +1,28 @@
-# Use Ubuntu 20.04 as the base image
-FROM ubuntu:20.04
+FROM docker.io/paritytech/ci-unified:latest as builder
 
-# Disable interactive frontend during build
-ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /polkadot
+COPY . /polkadot
 
-# Update package lists and install required packages
-RUN apt-get update && \
-    apt-get install -y \
-      build-essential \
-      curl \
-      git \
-      clang \
-      libssl-dev \
-      pkg-config \
-      llvm \
-      libudev-dev \
-      cmake \
-      wget \
-      && rm -rf /var/lib/apt/lists/*
+RUN cargo fetch
+RUN cargo build --locked --release
 
-# Install rustup and Rust (stable toolchain)
+FROM docker.io/parity/base-bin:latest
 
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
+COPY --from=builder /polkadot/target/release/parachain-template-node /usr/local/bin
 
-# (Optional) Install nightly if your project requires it:
-# RUN rustup default nightly
+USER root
+RUN useradd -m -u 1001 -U -s /bin/sh -d /polkadot polkadot && \
+	mkdir -p /data /polkadot/.local/share && \
+	chown -R polkadot:polkadot /data && \
+	ln -s /data /polkadot/.local/share/polkadot && \
+# unclutter and minimize the attack surface
+	rm -rf /usr/bin /usr/sbin && \
+# check if executable works in this container
+	/usr/local/bin/parachain-template-node --version
 
-# (Optional) Install additional cargo tools such as cargo-watch
-RUN cargo install cargo-watch
+USER polkadot
 
+EXPOSE 30333 9933 9944 9615
+VOLUME ["/data"]
 
-WORKDIR /app
-
-EXPOSE 9944 9933 30333 30334
-
-CMD ["bash"]
+ENTRYPOINT ["/usr/local/bin/parachain-template-node"]
