@@ -1,0 +1,12 @@
+services:
+  substrate-dev:
+    tty: true
+    build: .
+    container_name: substrate-dev
+    ports:
+      - "9944:9944"
+      - "9933:9933"
+      - "30333:30333"
+      - "30334:30334"
+    volumes:
+      - .:/Users/Khalil/Elysium_Coin
