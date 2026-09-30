@@ -1,0 +1,27 @@
+services:
+  elysium:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: elysium-coin
+
+    command:
+      - --dev
+      - --rpc-external
+      - --rpc-cors
+      - all
+
+    ports:
+      - "30333:30333"
+      - "9933:9933"
+      - "9944:9944"
+      - "9615:9615"
+
+    volumes:
+      - elysium-data:/data
+
+    restart: unless-stopped
+
+volumes:
+  elysium-data:
