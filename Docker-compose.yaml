@@ -1,14 +1,13 @@
 services:
   elysium:
-    image: boneappleteeth/elysium_dev:latest
-    entrypoint: /usr/local/bin/parachain-template-node
+    build:
+      context: .
+      dockerfile: Dockerfile
 
     container_name: elysium-coin
 
     command:
       - --dev
-      - --base-path
-      - /data
       - --rpc-external
       - --rpc-cors
       - all

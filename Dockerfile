@@ -1,45 +1,17 @@
 # -------------------------------------------------------
 # Build stage
 # -------------------------------------------------------
-FROM rust:1.81.0-bookworm AS builder
+FROM docker.io/paritytech/ci-unified:latest AS builder
 
 WORKDIR /polkadot
 
-# Install native build dependencies required by Polkadot/Substrate
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        clang \
-        cmake \
-        pkg-config \
-        libssl-dev \
-        libclang-dev \
-        git \
-        protobuf-compiler \
-    && rm -rf /var/lib/apt/lists/*
-
+# Copy the project into the build container
 COPY . .
 
-# Add the components required for Substrate WASM builds
-RUN rustup component add rust-src && \
-    rustup target add wasm32-unknown-unknown
-
-# Verify the build environment
-RUN echo "=== Rust environment ===" && \
-    rustc --version && \
-    cargo --version && \
-    rustup show active-toolchain && \
-    echo "=== Protobuf compiler ===" && \
-    protoc --version && \
-    which protoc && \
-    echo "=== Installed targets ===" && \
-    rustup target list --installed && \
-    echo "=== Installed components ===" && \
-    rustup component list --installed
-
-# Download dependencies exactly as specified by Cargo.lock
+# Download Rust dependencies
 RUN cargo fetch --locked
 
-# Build the parachain node and WASM runtime
+# Compile optimized release binary
 RUN cargo build --locked --release
 
 
@@ -48,24 +20,39 @@ RUN cargo build --locked --release
 # -------------------------------------------------------
 FROM docker.io/parity/base-bin:latest
 
+# Copy only the compiled node binary
 COPY --from=builder \
     /polkadot/target/release/parachain-template-node \
     /usr/local/bin/parachain-template-node
 
 USER root
 
-RUN useradd -m -u 1001 -U -s /bin/sh -d /polkadot polkadot && \
-    mkdir -p /data /polkadot/.local/share && \
-    chown -R polkadot:polkadot /data /polkadot && \
-    ln -s /data /polkadot/.local/share/polkadot && \
-    /usr/local/bin/parachain-template-node --version && \
-    rm -rf /usr/bin /usr/sbin
+# Create a non-root user and persistent blockchain data directory
+RUN useradd \
+        -m \
+        -u 1001 \
+        -U \
+        -s /bin/sh \
+        -d /polkadot \
+        polkadot \
+    && mkdir -p /data /polkadot/.local/share \
+    && chown -R polkadot:polkadot /data /polkadot \
+    && ln -s /data /polkadot/.local/share/polkadot \
+    && /usr/local/bin/parachain-template-node --version \
+    && rm -rf /usr/bin /usr/sbin
 
 USER polkadot
 
+# P2P
 EXPOSE 30333
+
+# HTTP RPC
 EXPOSE 9933
+
+# WebSocket RPC
 EXPOSE 9944
+
+# Prometheus metrics
 EXPOSE 9615
 
 VOLUME ["/data"]
