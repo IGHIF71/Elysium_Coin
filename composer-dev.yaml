@@ -1,12 +1,18 @@
 services:
   substrate-dev:
+    image: docker.io/paritytech/ci-unified:latest
+    network_mode: host
     tty: true
-    build: .
+    stdin_open: true
     container_name: substrate-dev
-    ports:
-      - "9944:9944"
-      - "9933:9933"
-      - "30333:30333"
-      - "30334:30334"
+    working_dir: /workspace
+    entrypoint: []
+    command: ["sleep", "infinity"]
     volumes:
-      - .:/Users/Khalil/Elysium_Coin
+      - .:/workspace
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/workspace/target
+
+volumes:
+  cargo-registry:
+  cargo-target:
